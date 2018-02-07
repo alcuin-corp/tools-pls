@@ -1,9 +1,10 @@
-import json
+from dto import Target, Tenant
+from migrator import Migrator
+from server import Server
 
 class Context:
-    def __init__(self, filename: str):
-        f = open(filename)
-        self.config = json.load(f)
+    def __init__(self, config: str):
+        self.config = config
         self.tenants = []
 
         def build_target(dic):
