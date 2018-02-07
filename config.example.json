@@ -1,1 +1,20 @@
-{"migrator_exe": "C:/dev/alcuin/alcuin/Tools/Migrator/Alcuin.Migration.Migrator.Console.exe", "public_migration_dll": "C:/dev/alcuin/alcuin/Migration/output/Alcuin.Migration.Application.dll", "config_migration_dll": "C:/dev/alcuin/alcuin/Migration/output/Alcuin.Migration.Configuration.dll", "backup_directory": "C:/Program Files/Microsoft SQL Server/MSSQL14.MSSQLSERVER/MSSQL/Backup", "server": "localhost", "tenants": [{"name": "Alcuin1", "public": {"db": "Alcuin1", "backup": "Alcuin1.bak"}, "config": {"db": "Alcuin1_ADM", "backup": "Alcuin1_ADM.bak"}}, {"name": "Alcuin2", "public": {"db": "Alcuin2", "backup": "Alcuin2.bak"}, "config": {"db": "Alcuin2_ADM", "backup": "Alcuin2_ADM.bak"}}]}
+{
+    "backup_directory": "C:/Program Files/Microsoft SQL Server/MSSQL14.MSSQLSERVER/MSSQL/Backup",
+    "config_migration_dll": "C:/dev/alcuin/alcuin/Migration/output/Alcuin.Migration.Configuration.dll",
+    "public_migration_dll": "C:/dev/alcuin/alcuin/Migration/output/Alcuin.Migration.Application.dll",
+    "migrator_exe": "C:/dev/alcuin/alcuin/Tools/Migrator/Alcuin.Migration.Migrator.Console.exe",
+    "server": "localhost",
+    "tenants": [
+        {
+            "config": {
+                "backup": "Alcuin1_ADM.bak",
+                "db": "Alcuin1_ADM"
+            },
+            "name": "Alcuin1",
+            "public": {
+                "backup": "Alcuin1.bak",
+                "db": "Alcuin1"
+            }
+        }
+    ]
+}
