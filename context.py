@@ -3,6 +3,7 @@ from tenant import Tenant
 from migrator import Migrator
 from server import Server
 from colors import green
+import subprocess as sp
 import os
 import json
 import copy
@@ -40,10 +41,12 @@ def save_file(content, file_name):
     f.flush()
 
 @with_default({
+    "alcuin_root_path": "",
+    "msbuild_exe": "",
     "backup_directory": "",
     "config_migration_dll": "",
     "public_migration_dll": "",
-    "migrator_exe": "",
+    "migrator_exe": "",  
 })
 def load_settings(file_name):
     return load_file(file_name)
@@ -70,8 +73,21 @@ class Context:
             return Migrator(self.settings["migrator_exe"], self.settings["config_migration_dll"])    
         else:
             raise Exception("Unkown target type: " + target.target_type)
+
+    def __build_migrations(self):
+
+        if (not os.path.exists('x:/')):
+            sp.call(f'""')
+
+        # root = self.settings['alcuin_root_directory']
+        # msbuild = self.settings['msbuild_exe']
+        # config_dll = root + '/Migration/Alcuin.Migration.Application/Alcuin.Migration.Application.csproj'
+        # public_dll = root + '/Migration/Alcuin.Migration.Configuration/Alcuin.Migration.Configuration.csproj'
+        # sp.call(f'"{msbuild}" "{config_dll}"')
+        # sp.call(f'"{msbuild}" "{public_dll}"')
     
     def migrate_targets(self, *targets):
+        self.__build_migrations()
         for target in targets:
             server = self.get_server(target.server_id)
             self.__get_migrator(target).migrate(server.data_source, target.db_name)  

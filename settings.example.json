@@ -1,0 +1,8 @@
+{
+    "alcuin_root_directory": "C:/dev/alcuin/alcuin",
+    "msbuild_exe": "C:/Windows/Microsoft.NET/Framework64/v4.0.30319/MSBuild.exe",
+    "backup_directory": "C:/Program Files/Microsoft SQL Server/MSSQL14.MSSQLSERVER/MSSQL/Backup",
+    "public_migration_dll": "C:/dev/alcuin/alcuin/Migration/output/Alcuin.Migration.Application.dll",
+    "config_migration_dll": "C:/dev/alcuin/alcuin/Migration/output/Alcuin.Migration.Configuration.dll",
+    "migrator_exe": "C:/dev/alcuin/alcuin/Tools/Migrator/Alcuin.Migration.Migrator.Console.exe"
+}
