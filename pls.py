@@ -1,22 +1,11 @@
 import json
 from argparse import ArgumentParser
 import os
-import api
+import context
+from colors import green
 
-def load_config_file(config_file):
-    if not (os.path.exists(config_file)):
-        print("Can't load config file.")
-        exit()
-
-    f = open(config_file, 'r')
-    config = json.load(f)
-    f.close()
-    return config
-
-def save_config_file(config, config_file):
-    f = open(config_file, 'w')
-    f.write(json.dumps(config, sort_keys=True, indent=4))
-    f.flush()
+def log(message, tenant_id):
+    print('\t...::[[ 🚿 ' + message + ' ' + green(tenant_id) + ' 🚿 ]]::...')
 
 parser = ArgumentParser(description='PLS: Powerfull Lannister Script v2, manages applications.')
 
@@ -25,45 +14,43 @@ parser.add_argument('-c', '--config', help="Uses a specific config file (will be
 subparser = parser.add_subparsers(help="commands", dest="command")
 
 add_parser = subparser.add_parser('add')
-add_parser.add_argument('tenant_name')
+add_parser.add_argument('tenant')
 
 del_parser = subparser.add_parser('remove')
-del_parser.add_argument('tenant_name')
+del_parser.add_argument('tenant')
 
 run_parser = subparser.add_parser('run')
+run_parser.add_argument('tenants', nargs="+", type=str, help="Select the tenants to which we will perform the tasks (use 'all' to select all the tenants).")
 run_parser.add_argument('-m', '--migrate', action="store_true", help="Migrate the databases.")
 run_parser.add_argument('-r', '--restore', action="store_true", help="Restore the databases from the backups.")
 run_parser.add_argument('-b', '--backup', action="store_true", help="Creates new backups from the databases.")
 run_parser.add_argument('-a', '--all', action="store_true", help="Executes all tasks.")
 
 args = parser.parse_args()
-
-config = load_config_file(args.config)
+api = context.build()
 
 if args.command == 'run':
-    api = api.Api(config)
+    tenants = args.tenants
+    if (len(args.tenants) == 1 and args.tenants[0] == 'all'):
+        tenants = [tenant_id for tenant_id in api.config['tenants']]
+
     if args.restore or args.all:
-        api.restore()
+        for tenant_id in tenants:
+            log('restore', tenant_id)
+            api.restore_tenant(tenant_id)
     if args.migrate or args.all:
-        api.migrate()
+        for tenant_id in tenants:
+            log('migrate', tenant_id)
+            api.migrate_tenant(tenant_id)
     if args.backup or args.all:
-        api.backup()   
+        for tenant_id in tenants:
+            log('backup', tenant_id)
+            api.backup_tenant(tenant_id)
 
 elif args.command == 'remove':
-    config["tenants"] = [t for t in config["tenants"] if t["name"] != args.tenant_name]
-    save_config_file(config, args.config)
+    api = api.remove_tenant(args.tenant)
+    api.save()
 
 elif args.command == 'add':
-    config["tenants"].append({
-        "name": args.tenant_name,
-        "public": {
-            "db": args.tenant_name,
-            "backup": args.tenant_name + '.bak',
-        },
-        "config": {
-            "db": args.tenant_name + "_ADM",
-            "backup": args.tenant_name + '_ADM.bak',
-        },
-    })
-    save_config_file(config, args.config)
-
+    api = api.create_tenant(args.tenant)
+    api.save()
