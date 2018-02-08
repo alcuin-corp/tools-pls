@@ -1,12 +1,13 @@
 from subprocess import call
 
 class Server:
-    def __init__(self, name: str, backup_directory: str):
-        self.name = name
+    def __init__(self, server_id: str, data_source: str, backup_directory: str):
+        self.server_id = server_id
+        self.data_source = data_source
         self.backup_directory = backup_directory
 
     def sqlcmd(self, query: str):
-        call(f'sqlcmd -S {self.name} -Q "{query}"')
+        call(f'sqlcmd -S {self.data_source} -Q "{query}"')
 
     def restore(self, db_name, backup_file_name):
         self.sqlcmd(f"ALTER DATABASE [{db_name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE")
