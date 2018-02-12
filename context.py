@@ -7,13 +7,14 @@ import subprocess as sp
 import os
 import json
 import copy
+import sys
 
-def must_exist():
+def must_exist(message):
     def wrapper(func):
         def decorator(file_name):
             if not (os.path.exists(file_name)):
-                print("Can't load this file.")
-                exit()
+                print(f"{file_name} not found, {message}")
+                sys.exit()
             return func(file_name)
         return decorator
     return wrapper
@@ -51,7 +52,7 @@ def save_file(content, file_name):
 def load_settings(file_name):
     return load_file(file_name)
 
-@must_exist()
+@must_exist("this might be because you do not have a configuration file, see the file config.example.json for a template.")
 def load_config(file_name):
     return load_file(file_name)
 

@@ -42,7 +42,7 @@ def build_parser():
     return parser
 
 def process(args):
-    api = context.build()
+    api = context.build(args.config or "config.json")
     
     if args.command == 'run':
         tenants = args.tenants
