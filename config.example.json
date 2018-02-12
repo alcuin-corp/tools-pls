@@ -1,16 +1,47 @@
 {
-    "tenants": [
-        {
-            "config": {
-                "backup": "Alcuin1_ADM.bak",
-                "db": "Alcuin1_ADM"
-            },
-            "name": "Alcuin1",
-            "server": "localhost",
-            "public": {
-                "backup": "Alcuin1.bak",
-                "db": "Alcuin1"
-            }
+    "servers": {
+        "localhost": {
+            "backup_directory": "C:/Program Files/Microsoft SQL Server/MSSQL14.MSSQLSERVER/MSSQL/Backup",
+            "data_source": "localhost",
+            "user_id": "sa",
+            "password": "P@assw0rd"
         }
-    ]
+    },
+    "tenants": {
+        "Alcuin1": {
+            "name": "Alcuin1",
+            "targets": [
+                {
+                    "backup_file_name": "Alcuin1_ADM.bak",
+                    "db_name": "Alcuin1_ADM",
+                    "server_id": "localhost",
+                    "target_type": "config"
+                },
+                {
+                    "backup_file_name": "Alcuin1.bak",
+                    "db_name": "Alcuin1",
+                    "server_id": "localhost",
+                    "target_type": "public"
+                }
+            ]
+        },
+        "Alcuin2": {
+            "name": "Alcuin2",
+            "targets": [
+                {
+                    "backup_file_name": "Alcuin2.bak",
+                    "db_name": "Alcuin2",
+                    "server_id": "localhost",
+                    "target_type": "public"
+                },
+                {
+                    "backup_file_name": "Alcuin2_ADM.bak",
+                    "db_name": "Alcuin2_ADM",
+                    "server_id": "localhost",
+                    "target_type": "config"
+                }
+            ],
+            "tenant_id": "Alcuin2"
+        }
+    }
 }

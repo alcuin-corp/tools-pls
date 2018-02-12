@@ -1,8 +1,9 @@
-from target import Target
-from tenant import Tenant
-from migrator import Migrator
-from server import Server
-from colors import green
+from target     import Target
+from tenant     import Tenant
+from migrator   import Migrator
+from server     import Server
+import logger
+import subprocess as sp
 import os
 import json
 import copy
@@ -40,10 +41,12 @@ def save_file(content, file_name):
     f.flush()
 
 @with_default({
+    "alcuin_root_path": "",
+    "msbuild_exe": "",
     "backup_directory": "",
     "config_migration_dll": "",
     "public_migration_dll": "",
-    "migrator_exe": "",
+    "migrator_exe": "",  
 })
 def load_settings(file_name):
     return load_file(file_name)
@@ -58,7 +61,7 @@ def build(config_file_name:str='config.json', settings_file_name:str='settings.j
         config=load_config(config_file_name),
     )
 
-class Context:
+class Context(logger.Logger):
     def __init__(self, settings, config):
         self.settings = settings
         self.config = config
@@ -70,25 +73,50 @@ class Context:
             return Migrator(self.settings["migrator_exe"], self.settings["config_migration_dll"])    
         else:
             raise Exception("Unkown target type: " + target.target_type)
-    
+
+    def compile(self, csproj_file):
+        msbuild = self.settings['msbuild_exe']
+        sp.call(f'"{msbuild}" "{csproj_file}"')
+
+    def compile_migrations(self):
+        import ctypes
+        if (not ctypes.windll.shell32.IsUserAnAdmin()):
+            self.error('Compilation can only be executed under an elevated environment, please run this task as an administrator.')
+            quit()
+
+        root = self.settings['alcuin_root_directory']
+
+        if (not os.path.exists('x:/')):
+            sp.call(f'"{root}"/x.bat')
+            self.ok('X has been mounted')
+
+        self.compile(f'{root}/Migration/Alcuin.Migration.Application/Alcuin.Migration.Application.csproj')
+        self.ok(f'Alcuin.Migration.Application.csproj has been compiled successfully')
+        self.compile(f'{root}/Migration/Alcuin.Migration.Configuration/Alcuin.Migration.Configuration.csproj')
+        self.ok(f'Alcuin.Migration.Configuration has been compiled successfully')
+
     def migrate_targets(self, *targets):
         for target in targets:
             server = self.get_server(target.server_id)
-            self.__get_migrator(target).migrate(server.data_source, target.db_name)  
+            self.__get_migrator(target).migrate(server.data_source, target.db_name)
+            self.ok(f'Database {target.db_name} on server {server.data_source} has been migrated successfully.')
 
     def restore_targets(self, *targets):
         for target in targets:
             server = self.get_server(target.server_id)
             server.restore(target.db_name, target.backup_file_name)
+            self.ok(f'Database {target.db_name} on server {server.data_source} has been restored successfully.')
 
     def backup_targets(self, *targets):
         for target in targets:
             server = self.get_server(target.server_id)
             server.backup(target.db_name, target.backup_file_name)
+            self.ok(f'Database {target.db_name} on server {server.data_source} has been saved successfully.')
 
     def save(self, config_file_name:str='config.json', settings_file_name:str='settings.json'):
         save_file(self.config, config_file_name)
         save_file(self.settings, settings_file_name)
+        self.ok(f'New configuration has been written.')
 
     def get_server(self, server_id):
         data = {k:v for k,v in self.config["servers"][server_id].items()}
@@ -102,7 +130,6 @@ class Context:
     def get_tenant(self, tenant_id):
         data = self.config["tenants"][tenant_id]
         targets = []
-        
         for target_data in data["targets"]:
             targets.append(Target(
                 target_type=target_data["target_type"],
@@ -116,27 +143,37 @@ class Context:
             name=data["name"],
             targets=targets,
         )
-    
-    def restore_tenant(self, *tenant_id_list: str):
-        for tenant_id in tenant_id_list:
-            tenant = self.get_tenant(tenant_id)
-            self.restore_targets(*tenant.targets)
 
-    def migrate_tenant(self, *tenant_id_list: str):
+    def restore_tenant(self, tenant_id):
+        tenant = self.get_tenant(tenant_id)
+        self.restore_targets(*tenant.targets)
+        self.ok(f'Tenant {tenant_id} has been restored successfully')
+    def restore_tenants(self, *tenant_id_list):
         for tenant_id in tenant_id_list:
-            tenant = self.get_tenant(tenant_id)
-            self.migrate_targets(*tenant.targets)
+            self.restore_tenant(tenant_id)
 
-    def backup_tenant(self, *tenant_id_list: str):
+    def migrate_tenant(self, tenant_id):
+        tenant = self.get_tenant(tenant_id)
+        self.migrate_targets(*tenant.targets)
+        self.ok(f'Tenant {tenant_id} has been restored successfully')
+    def migrate_tenants(self, *tenant_id_list):
         for tenant_id in tenant_id_list:
-            tenant = self.get_tenant(tenant_id)
-            self.backup_targets(*tenant.targets)
+            self.migrate_tenant(tenant_id)
+
+    def backup_tenant(self, tenant_id):
+        tenant = self.get_tenant(tenant_id)
+        self.backup_targets(*tenant.targets)
+        self.ok(f'Tenant {tenant_id} has been saved successfully')
+    def backup_tenants(self, *tenant_id_list):
+        for tenant_id in tenant_id_list:
+            self.backup_tenant(tenant_id)
 
     def remove_tenant(self, tenant_name):
         self.config["tenants"][tenant_name] # check that the tenant exists
         new_config = copy.deepcopy(self.config)
         new_settings = copy.deepcopy(self.settings)
         del new_config["tenants"][tenant_name]
+        self.ok(f'Tenant {tenant_name} removed from configuration file.')
         return Context(new_settings, new_config)
 
     def create_tenant(self, tenant_name, **kwargs):
@@ -161,5 +198,6 @@ class Context:
         new_config = copy.deepcopy(self.config)
         new_settings = copy.deepcopy(self.settings)
         new_config["tenants"].update({tenant_id: tenant})
+        self.ok(f'Tenant {tenant_name} added to configuration file.')
 
         return Context(new_settings, new_config)
