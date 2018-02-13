@@ -39,12 +39,19 @@ def build_parser():
     run_parser.add_argument('-b', '--backup', action="store_true", help="creates new backups from the databases")
     run_parser.add_argument('-a', '--all', action="store_true", help="executes all tasks (this does not include the compilation step, use -ac if you want to do everything)")
 
+    run_parser = subparser.add_parser('list')
+
     return parser
 
 def process(args):
     api = context.build()
+
+    if args.command == 'list':
+        list = [tenant for tenant in api.config['tenants']]
+        for l in list:
+            print(l)
     
-    if args.command == 'run':
+    elif args.command == 'run':
         tenants = args.tenants
         if (len(args.tenants) == 1 and args.tenants[0] == 'all'):
             tenants = [tenant_id for tenant_id in api.config['tenants']]
