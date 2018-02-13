@@ -150,7 +150,7 @@ class Context(logger.Logger):
         for tenant_id in tenant_id_list:
             tenant = self.get_tenant(tenant_id)
             self.migrate_targets(*tenant.targets)
-            self.ok(f'Tenant {tenant_id} has been restored successfully')
+            self.ok(f'Tenant {tenant_id} has been migrated successfully')
 
     def backup_tenants(self, *tenant_id_list):
         for tenant_id in tenant_id_list:
