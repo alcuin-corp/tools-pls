@@ -99,20 +99,23 @@ class Context(logger.Logger):
     def migrate_targets(self, *targets):
         for target in targets:
             server = self.get_server(target.server_id)
+            db_name = server.get_dbname(target.backup_file_name)
             self.__get_migrator(target).migrate(server.data_source, target.db_name)
-            self.ok(f'Database {target.db_name} on server {server.data_source} has been migrated successfully.')
+            self.ok(f'Database {db_name} on server {server.data_source} has been migrated successfully.')
 
     def restore_targets(self, *targets):
         for target in targets:
             server = self.get_server(target.server_id)
-            server.restore(target.db_name, target.backup_file_name)
-            self.ok(f'Database {target.db_name} on server {server.data_source} has been restored successfully.')
+            db_name = server.get_dbname(target.backup_file_name)
+            server.restore(target.backup_file_name)
+            self.ok(f'Database {db_name} on server {server.data_source} has been restored successfully.')
 
     def backup_targets(self, *targets):
         for target in targets:
             server = self.get_server(target.server_id)
-            server.backup(target.db_name, target.backup_file_name)
-            self.ok(f'Database {target.db_name} on server {server.data_source} has been saved successfully.')
+            db_name = server.get_dbname(target.backup_file_name)
+            server.backup(target.backup_file_name)
+            self.ok(f'Database {db_name} on server {server.data_source} has been saved successfully.')
 
     def save(self, config_file_name:str='config.json', settings_file_name:str='settings.json'):
         save_file(self.config, config_file_name)
@@ -135,13 +138,11 @@ class Context(logger.Logger):
             targets.append(Target(
                 target_type=target_data["target_type"],
                 server_id=target_data["server_id"],
-                db_name=target_data["db_name"],
                 backup_file_name=target_data["backup_file_name"],
             ))
         
         return Tenant(
             tenant_id=tenant_id,
-            name=data["name"],
             targets=targets,
         )
 

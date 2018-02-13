@@ -1,14 +1,17 @@
 from subprocess import call
+from os.path import join as pj, basename
 import logger
 import pyodbc
 
 class Server(logger.Logger):
-    def __init__(self, server_id: str, data_source: str, backup_directory: str, user_id: str=None, password: str=None):
-        self.server_id = server_id
+    def __init__(self, data_source: str, install_path: str, server_id: str=None, user_id: str=None, password: str=None):
+        self.data_source = data_source
         self.user_id = user_id or 'sa'
         self.password = password or 'P@ssw0rd'
-        self.data_source = data_source
-        self.backup_directory = backup_directory
+        self.server_id = server_id or data_source
+        self.install_path = install_path
+        self.backup_directory = pj(install_path, 'Backup')
+        self.data_directory = pj(install_path, 'DATA')
 
     def build_connection_string(self, database=None, user_id=None, password=None):
         return f'DRIVER={{ODBC Driver 13 for SQL Server}};SERVER={self.data_source};DATABASE={database or "master"};UID={user_id or "sa"};PWD={password or "P@ssw0rd"}'
@@ -28,7 +31,30 @@ class Server(logger.Logger):
             cur.close()
             cnx.close()
 
-    def restore(self, db_name, backup_file_name):
+    def get_dbname(self, backup_file_name):
+        cnx = self.open_connexion()
+        cur = cnx.cursor()
+        row = cur.execute(f"RESTORE HEADERONLY FROM DISK = '{pj(self.backup_directory, backup_file_name)}'").fetchone()
+        return row.DatabaseName
+        
+
+    def get_filelist(self, backup_file_name):
+        cnx = self.open_connexion()
+        cur = cnx.cursor()
+        file_list = cur.execute(f"RESTORE FILELISTONLY FROM DISK = '{pj(self.backup_directory, backup_file_name)}'")
+        arr = []
+        for item in file_list:
+            arr.append({
+                'logical': item.LogicalName,
+                'physical': item.PhysicalName
+            })
+        return arr
+
+    def build_move_clauses(self, backup_file_name):
+        return ','.join([f"MOVE N'{name['logical']}' TO N'{pj(self.data_directory, basename(name['physical']))}'" for name in self.get_filelist(backup_file_name)])
+
+    def restore(self, backup_file_name):
+        db_name = self.get_dbname(backup_file_name)
         cnx = self.open_connexion()
         cur = cnx.cursor()
         switched_to_single_mode = False
@@ -49,12 +75,18 @@ class Server(logger.Logger):
             cur.close()
             cnx.close()
 
-        self.run(f"RESTORE DATABASE [{db_name}] FROM  DISK = N'{self.backup_directory}/{backup_file_name}' WITH FILE = 1, NOUNLOAD, REPLACE, RECOVERY, STATS = 25;")
+        move_clauses = self.build_move_clauses(backup_file_name)
+        self.ok(f'Move clauses built as: {move_clauses}')
+        self.run(f"RESTORE DATABASE [{db_name}] FROM  DISK = N'{pj(self.backup_directory, backup_file_name)}' WITH FILE = 1, {move_clauses}, NOUNLOAD, REPLACE, RECOVERY, STATS = 25;")
         self.ok('Restored successfully...')
 
         if switched_to_single_mode:
             self.run(f"ALTER DATABASE [{db_name}] SET MULTI_USER;")
             self.ok('Switch back to multi user state...')
 
-    def backup(self, db_name, backup_file_name):
-        self.run(f"BACKUP DATABASE [{db_name}] TO  DISK = N'{self.backup_directory}/{backup_file_name}' WITH NOFORMAT, INIT, NAME = N'{self.backup_directory}\\{db_name}-Full Database Backup', SKIP, NOREWIND;")
+    def backup(self, backup_file_name):
+        files = self.get_filelist(backup_file_name)[0]
+        db_name = self.get_dbname(backup_file_name)
+        physical = pj(self.backup_directory, basename(files['physical']))
+        name = pj(self.backup_directory, basename(files['physical'])+'-Full Database Backup')
+        self.run(f"BACKUP DATABASE [{db_name}] TO  DISK = N'{physical}' WITH NOFORMAT, INIT, NAME = N'{name}', SKIP, NOREWIND;")
