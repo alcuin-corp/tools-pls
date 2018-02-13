@@ -3,7 +3,7 @@ from os.path import join as pj, basename
 import logger
 import pyodbc
 
-class Server(logger.Logger):
+class Server:
     def __init__(self, data_source: str, install_path: str, server_id: str=None, user_id: str=None, password: str=None):
         self.data_source = data_source
         self.user_id = user_id or 'sa'
@@ -66,27 +66,20 @@ class Server(logger.Logger):
                 AND user_access_desc = 'MULTI_USER'            
             """).fetchone()
             if result[0] > 0:
-                self.ok('Database is on multi-user, switch to single user...')
                 cur.execute(f"ALTER DATABASE [{db_name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;")
                 switched_to_single_mode = True
-        except:
-            self.error('Switch to multi-user failed.')
         finally:
             cur.close()
             cnx.close()
 
         move_clauses = self.build_move_clauses(backup_file_name)
-        self.ok(f'Move clauses built as: {move_clauses}')
         self.run(f"RESTORE DATABASE [{db_name}] FROM  DISK = N'{pj(self.backup_directory, backup_file_name)}' WITH FILE = 1, {move_clauses}, NOUNLOAD, REPLACE, RECOVERY, STATS = 25;")
-        self.ok('Restored successfully...')
 
         if switched_to_single_mode:
             self.run(f"ALTER DATABASE [{db_name}] SET MULTI_USER;")
-            self.ok('Switch back to multi user state...')
 
     def backup(self, backup_file_name):
         files = self.get_filelist(backup_file_name)[0]
         db_name = self.get_dbname(backup_file_name)
-        physical = pj(self.backup_directory, basename(files['physical']))
         name = pj(self.backup_directory, basename(files['physical'])+'-Full Database Backup')
-        self.run(f"BACKUP DATABASE [{db_name}] TO  DISK = N'{physical}' WITH NOFORMAT, INIT, NAME = N'{name}', SKIP, NOREWIND;")
+        self.run(f"BACKUP DATABASE [{db_name}] TO  DISK = N'{pj(self.backup_directory, backup_file_name)}' WITH NOFORMAT, INIT, NAME = N'{name}', SKIP, NOREWIND;")

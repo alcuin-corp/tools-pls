@@ -92,30 +92,24 @@ class Context(logger.Logger):
             self.ok('X has been mounted')
 
         self.compile(f'{root}/Migration/Alcuin.Migration.Application/Alcuin.Migration.Application.csproj')
-        self.ok(f'Alcuin.Migration.Application.csproj has been compiled successfully')
         self.compile(f'{root}/Migration/Alcuin.Migration.Configuration/Alcuin.Migration.Configuration.csproj')
-        self.ok(f'Alcuin.Migration.Configuration has been compiled successfully')
+        self.ok(f'Projects compiled successfully')
 
     def migrate_targets(self, *targets):
         for target in targets:
             server = self.get_server(target.server_id)
             db_name = server.get_dbname(target.backup_file_name)
-            self.__get_migrator(target).migrate(server.data_source, target.db_name)
-            self.ok(f'Database {db_name} on server {server.data_source} has been migrated successfully.')
+            self.__get_migrator(target).migrate(server.data_source, db_name)
 
     def restore_targets(self, *targets):
         for target in targets:
             server = self.get_server(target.server_id)
-            db_name = server.get_dbname(target.backup_file_name)
             server.restore(target.backup_file_name)
-            self.ok(f'Database {db_name} on server {server.data_source} has been restored successfully.')
 
     def backup_targets(self, *targets):
         for target in targets:
             server = self.get_server(target.server_id)
-            db_name = server.get_dbname(target.backup_file_name)
             server.backup(target.backup_file_name)
-            self.ok(f'Database {db_name} on server {server.data_source} has been saved successfully.')
 
     def save(self, config_file_name:str='config.json', settings_file_name:str='settings.json'):
         save_file(self.config, config_file_name)
@@ -146,29 +140,23 @@ class Context(logger.Logger):
             targets=targets,
         )
 
-    def restore_tenant(self, tenant_id):
-        tenant = self.get_tenant(tenant_id)
-        self.restore_targets(*tenant.targets)
-        self.ok(f'Tenant {tenant_id} has been restored successfully')
     def restore_tenants(self, *tenant_id_list):
         for tenant_id in tenant_id_list:
-            self.restore_tenant(tenant_id)
+            tenant = self.get_tenant(tenant_id)
+            self.restore_targets(*tenant.targets)
+            self.ok(f'Tenant {tenant_id} has been restored successfully')
 
-    def migrate_tenant(self, tenant_id):
-        tenant = self.get_tenant(tenant_id)
-        self.migrate_targets(*tenant.targets)
-        self.ok(f'Tenant {tenant_id} has been restored successfully')
     def migrate_tenants(self, *tenant_id_list):
         for tenant_id in tenant_id_list:
-            self.migrate_tenant(tenant_id)
+            tenant = self.get_tenant(tenant_id)
+            self.migrate_targets(*tenant.targets)
+            self.ok(f'Tenant {tenant_id} has been restored successfully')
 
-    def backup_tenant(self, tenant_id):
-        tenant = self.get_tenant(tenant_id)
-        self.backup_targets(*tenant.targets)
-        self.ok(f'Tenant {tenant_id} has been saved successfully')
     def backup_tenants(self, *tenant_id_list):
         for tenant_id in tenant_id_list:
-            self.backup_tenant(tenant_id)
+            tenant = self.get_tenant(tenant_id)
+            self.backup_targets(*tenant.targets)
+            self.ok(f'Tenant {tenant_id} has been saved successfully')
 
     def remove_tenant(self, tenant_name):
         self.config["tenants"][tenant_name] # check that the tenant exists
