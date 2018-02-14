@@ -12,11 +12,11 @@ import sys
 
 def must_exist(message):
     def wrapper(func):
-        def decorator(file_name):
-            if not (os.path.exists(file_name)):
-                print(f"{file_name} not found, {message}")
+        def decorator(filename):
+            if not (os.path.exists(filename)):
+                print(f"{filename} not found, {message}")
                 sys.exit()
-            return func(file_name)
+            return func(filename)
 
         return decorator
 
@@ -25,27 +25,27 @@ def must_exist(message):
 
 def with_default(default_data):
     def wrapper(func):
-        def decorator(file_name):
-            if not (os.path.exists(file_name)):
-                f = open(file_name, 'w')
+        def decorator(filename):
+            if not (os.path.exists(filename)):
+                f = open(filename, 'w')
                 f.write(json.dumps(default_data, sort_keys=True, indent=4))
                 f.close()
-            return func(file_name)
+            return func(filename)
 
         return decorator
 
     return wrapper
 
 
-def load_file(file_name):
-    f = open(file_name, 'r')
+def load_file(filename):
+    f = open(filename, 'r')
     config = json.load(f)
     f.close()
     return config
 
 
-def save_file(content, file_name):
-    f = open(file_name, 'w')
+def save_file(content, filename):
+    f = open(filename, 'w')
     f.write(json.dumps(content, default=lambda o: o.__dict__, sort_keys=True, indent=4))
     f.flush()
 
@@ -58,20 +58,20 @@ def save_file(content, file_name):
     "public_migration_dll": "",
     "migrator_exe": "",
 })
-def load_settings(file_name):
-    return load_file(file_name)
+def load_settings(filename):
+    return load_file(filename)
 
 
 @must_exist(
     "this might be because you do not have a configuration file, see the file config.example.json for a template.")
-def load_config(file_name):
-    return load_file(file_name)
+def load_config(filename):
+    return load_file(filename)
 
 
-def build(config_file_name: str = 'config.json', settings_file_name: str = 'settings.json'):
+def build(config_filename: str = 'config.json', settings_filename: str = 'settings.json'):
     return Context(
-        settings=load_settings(settings_file_name),
-        config=load_config(config_file_name),
+        settings=load_settings(settings_filename),
+        config=load_config(config_filename),
     )
 
 
@@ -113,22 +113,21 @@ class Context(logger.Logger):
     def migrate_targets(self, *targets):
         for target in targets:
             server = self.get_server(target.server_id)
-            db_name = server.get_dbname(target.backup_file_name)
-            self.__get_migrator(target).migrate(server.data_source, db_name)
+            self.__get_migrator(target).migrate(server.data_source, target.db_name)
 
     def restore_targets(self, *targets):
         for target in targets:
             server = self.get_server(target.server_id)
-            server.restore(target.backup_file_name)
+            server.restore(target.db_name, target.backup_filename)
 
     def backup_targets(self, *targets):
         for target in targets:
             server = self.get_server(target.server_id)
-            server.backup(target.backup_file_name)
+            server.backup(target.db_name, target.backup_filename)
 
-    def save(self, config_file_name: str = 'config.json', settings_file_name: str = 'settings.json'):
-        save_file(self.config, config_file_name)
-        save_file(self.settings, settings_file_name)
+    def save(self, config_filename: str = 'config.json', settings_filename: str = 'settings.json'):
+        save_file(self.config, config_filename)
+        save_file(self.settings, settings_filename)
         self.ok(f'New configuration has been written.')
 
     def get_server(self, server_id):
@@ -145,9 +144,10 @@ class Context(logger.Logger):
         targets = []
         for target_data in data["targets"]:
             targets.append(Target(
+                db_name=target_data["db_name"],
                 target_type=target_data["target_type"],
                 server_id=target_data["server_id"],
-                backup_file_name=target_data["backup_file_name"],
+                backup_filename=target_data["backup_filename"],
             ))
 
         return Tenant(
@@ -185,24 +185,28 @@ class Context(logger.Logger):
         tenant_id = kwargs.get('tenant_id') or tenant_name
         config_postfix = kwargs.get("config_postfix") or '_ADM'
         public_db_name = kwargs.get("public_db_name") or tenant_name
-        public_file_name = kwargs.get("public_file_name") or tenant_name + '.bak'
+        public_filename = kwargs.get("public_filename") or tenant_name + '.bak'
         config_db_name = kwargs.get("config_db_name") or tenant_name + config_postfix
-        config_file_name = kwargs.get("config_file_name") or tenant_name + config_postfix + '.bak'
-
-        public_target = {'db_name': public_db_name, 'backup_file_name': public_file_name, 'server_id': server_id,
-                         'target_type': "public"}
-        config_target = {'db_name': config_db_name, 'backup_file_name': config_file_name, 'server_id': server_id,
-                         'target_type': "config"}
-
+        config_filename = kwargs.get("config_filename") or tenant_name + config_postfix + '.bak'
+        public_target = {
+            'db_name': public_db_name,
+            'backup_filename': public_filename,
+            'server_id': server_id,
+            'target_type': "public"
+        }
+        config_target = {
+            'db_name': config_db_name,
+            'backup_filename': config_filename,
+            'server_id': server_id,
+            'target_type': "config"
+        }
         tenant = {
             'tenant_id': tenant_id,
             'name': tenant_name,
             'targets': [public_target, config_target],
         }
-
         new_config = copy.deepcopy(self.config)
         new_settings = copy.deepcopy(self.settings)
         new_config["tenants"].update({tenant_id: tenant})
         self.ok(f'Tenant {tenant_name} added to configuration file.')
-
         return Context(new_settings, new_config)

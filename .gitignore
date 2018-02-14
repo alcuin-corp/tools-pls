@@ -6,3 +6,5 @@ build
 *settings.json
 .vscode
 .idea
+
+*transient*

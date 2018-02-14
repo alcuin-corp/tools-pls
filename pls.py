@@ -3,7 +3,6 @@ from argparse import ArgumentParser
 import context
 from config_api import ConfigApi
 
-
 def configure_dbtask(sub):
     p = sub.add_parser('dbtask')
     p.add_argument('tenants', nargs="+", type=str, help="select the tenants to which we will perform the tasks (use "
@@ -15,7 +14,6 @@ def configure_dbtask(sub):
     p.add_argument('-b', '--backup', action="store_true", help="creates new backups from the databases")
     p.add_argument('-a', '--all', action="store_true", help="executes all tasks (this does not include the "
                                                             "compilation step, use -ac if you want to do everything)")
-
 
 def configure_config(sub):
     def add_common_config_args(config_parser):
