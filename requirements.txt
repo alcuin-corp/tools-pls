@@ -1,3 +1,4 @@
+colorama
 PyInstaller==3.3.1
 pyodbc==4.0.22
 requests==2.18.4

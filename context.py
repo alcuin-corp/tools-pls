@@ -1,13 +1,14 @@
-from target     import Target
-from tenant     import Tenant
-from migrator   import Migrator
-from server     import Server
+from target import Target
+from tenant import Tenant
+from migrator import Migrator
+from server import Server
 import logger
 import subprocess as sp
 import os
 import json
 import copy
 import sys
+
 
 def must_exist(message):
     def wrapper(func):
@@ -16,8 +17,11 @@ def must_exist(message):
                 print(f"{file_name} not found, {message}")
                 sys.exit()
             return func(file_name)
+
         return decorator
+
     return wrapper
+
 
 def with_default(default_data):
     def wrapper(func):
@@ -27,8 +31,11 @@ def with_default(default_data):
                 f.write(json.dumps(default_data, sort_keys=True, indent=4))
                 f.close()
             return func(file_name)
+
         return decorator
+
     return wrapper
+
 
 def load_file(file_name):
     f = open(file_name, 'r')
@@ -36,10 +43,12 @@ def load_file(file_name):
     f.close()
     return config
 
+
 def save_file(content, file_name):
     f = open(file_name, 'w')
     f.write(json.dumps(content, default=lambda o: o.__dict__, sort_keys=True, indent=4))
     f.flush()
+
 
 @with_default({
     "alcuin_root_path": "",
@@ -47,31 +56,35 @@ def save_file(content, file_name):
     "backup_directory": "",
     "config_migration_dll": "",
     "public_migration_dll": "",
-    "migrator_exe": "",  
+    "migrator_exe": "",
 })
 def load_settings(file_name):
     return load_file(file_name)
 
-@must_exist("this might be because you do not have a configuration file, see the file config.example.json for a template.")
+
+@must_exist(
+    "this might be because you do not have a configuration file, see the file config.example.json for a template.")
 def load_config(file_name):
     return load_file(file_name)
 
-def build(config_file_name:str='config.json', settings_file_name:str='settings.json'):
+
+def build(config_file_name: str = 'config.json', settings_file_name: str = 'settings.json'):
     return Context(
         settings=load_settings(settings_file_name),
         config=load_config(config_file_name),
     )
 
+
 class Context(logger.Logger):
     def __init__(self, settings, config):
         self.settings = settings
         self.config = config
-    
+
     def __get_migrator(self, target):
         if target.target_type == 'public':
             return Migrator(self.settings["migrator_exe"], self.settings["public_migration_dll"])
         elif target.target_type == 'config':
-            return Migrator(self.settings["migrator_exe"], self.settings["config_migration_dll"])    
+            return Migrator(self.settings["migrator_exe"], self.settings["config_migration_dll"])
         else:
             raise Exception("Unkown target type: " + target.target_type)
 
@@ -81,13 +94,15 @@ class Context(logger.Logger):
 
     def compile_migrations(self):
         import ctypes
-        if (not ctypes.windll.shell32.IsUserAnAdmin()):
-            self.error('Compilation can only be executed under an elevated environment, please run this task as an administrator.')
+        if not ctypes.windll.shell32.IsUserAnAdmin():
+            self.error(
+                'Compilation can only be executed under an elevated environment, please run this task as an '
+                'administrator.')
             quit()
 
         root = self.settings['alcuin_root_directory']
 
-        if (not os.path.exists('x:/')):
+        if not os.path.exists('x:/'):
             sp.call(f'"{root}"/x.bat')
             self.ok('X has been mounted')
 
@@ -111,13 +126,13 @@ class Context(logger.Logger):
             server = self.get_server(target.server_id)
             server.backup(target.backup_file_name)
 
-    def save(self, config_file_name:str='config.json', settings_file_name:str='settings.json'):
+    def save(self, config_file_name: str = 'config.json', settings_file_name: str = 'settings.json'):
         save_file(self.config, config_file_name)
         save_file(self.settings, settings_file_name)
         self.ok(f'New configuration has been written.')
 
     def get_server(self, server_id):
-        data = {k:v for k,v in self.config["servers"][server_id].items()}
+        data = {k: v for k, v in self.config["servers"][server_id].items()}
         data["server_id"] = server_id
         return Server(**data)
 
@@ -134,7 +149,7 @@ class Context(logger.Logger):
                 server_id=target_data["server_id"],
                 backup_file_name=target_data["backup_file_name"],
             ))
-        
+
         return Tenant(
             tenant_id=tenant_id,
             targets=targets,
@@ -159,7 +174,6 @@ class Context(logger.Logger):
             self.ok(f'Tenant {tenant_id} has been saved successfully')
 
     def remove_tenant(self, tenant_name):
-        self.config["tenants"][tenant_name] # check that the tenant exists
         new_config = copy.deepcopy(self.config)
         new_settings = copy.deepcopy(self.settings)
         del new_config["tenants"][tenant_name]
@@ -168,7 +182,6 @@ class Context(logger.Logger):
 
     def create_tenant(self, tenant_name, **kwargs):
         server_id = kwargs.get("server_id") or 'localhost'
-        self.config["servers"][server_id] # check that the server exists
         tenant_id = kwargs.get('tenant_id') or tenant_name
         config_postfix = kwargs.get("config_postfix") or '_ADM'
         public_db_name = kwargs.get("public_db_name") or tenant_name
@@ -176,8 +189,10 @@ class Context(logger.Logger):
         config_db_name = kwargs.get("config_db_name") or tenant_name + config_postfix
         config_file_name = kwargs.get("config_file_name") or tenant_name + config_postfix + '.bak'
 
-        public_target = {'db_name': public_db_name, 'backup_file_name': public_file_name, 'server_id': server_id, 'target_type': "public"}
-        config_target = {'db_name': config_db_name, 'backup_file_name': config_file_name, 'server_id': server_id, 'target_type': "config"}
+        public_target = {'db_name': public_db_name, 'backup_file_name': public_file_name, 'server_id': server_id,
+                         'target_type': "public"}
+        config_target = {'db_name': config_db_name, 'backup_file_name': config_file_name, 'server_id': server_id,
+                         'target_type': "config"}
 
         tenant = {
             'tenant_id': tenant_id,
