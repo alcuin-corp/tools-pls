@@ -93,4 +93,3 @@ class Server:
                 f" NOUNLOAD, REPLACE, RECOVERY, STATS = 25;")
         self.run(task)     
         self.switch_to_multi_user_mode(db_name)
-        

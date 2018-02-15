@@ -1,5 +1,5 @@
 from target import Target
-from tenant import Tenant
+from tenant import Tenant, set_appname
 from migrator import Migrator
 from server import Server
 import logger
@@ -31,9 +31,7 @@ def with_default(default_data):
                 f.write(json.dumps(default_data, sort_keys=True, indent=4))
                 f.close()
             return func(filename)
-
         return decorator
-
     return wrapper
 
 
@@ -151,7 +149,8 @@ class Context(logger.Logger):
             ))
 
         return Tenant(
-            tenant_id=tenant_id,
+            tenant_id=tenant_id,            
+            name=data.get("name"),
             targets=targets,
         )
 
@@ -160,6 +159,9 @@ class Context(logger.Logger):
             tenant = self.get_tenant(tenant_id)
             self.restore_targets(*tenant.targets)
             self.ok(f'Tenant {tenant_id} has been restored successfully')
+            if tenant.name:
+                set_appname(self.get_server, tenant)
+                self.ok(f'Tenant name has been reset to {tenant.name}')
 
     def migrate_tenants(self, *tenant_id_list):
         for tenant_id in tenant_id_list:
